@@ -74,6 +74,22 @@ export default {
       });
     };
 
+    const mergeChunk = async ({
+      fileHash,
+      fileName,
+      totalChunks,
+    }: {
+      fileHash: string;
+      fileName: string;
+      totalChunks: number;
+    }) => {
+      await axios.post('/api/mergeChunks', {
+        fileHash,
+        fileName,
+        totalChunks
+      });
+    }
+
     // 上传文件
     const uploadFile = async () => {
       if (!file.value) {
@@ -132,7 +148,7 @@ export default {
               'Content-Type': 'multipart/form-data',
             },
             onUploadProgress: (progressEvent) => {
-              progress.value = ((i + progressEvent.loaded / progressEvent.total) / totalChunks) * 100;
+              progress.value = ((i + progressEvent.loaded / (progressEvent.total ?? 1)) / totalChunks) * 100;
             },
           });
 
@@ -140,6 +156,12 @@ export default {
         }
 
         alert('File uploaded successfully!');
+
+        mergeChunk({
+          totalChunks,
+          fileName: file.value.name,
+          fileHash: fileHash.value
+        });
       } catch (error: any) {
         uploadError.value = error.message || 'Upload failed. Please try again.';
       } finally {

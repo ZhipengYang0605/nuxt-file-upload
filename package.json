@@ -19,6 +19,8 @@
   },
   "packageManager": "pnpm@10.6.4+sha1.2036e172356d1e918e11cb21d795160cd6696fa9",
   "devDependencies": {
+    "@types/formidable": "^3.4.5",
+    "@types/node": "^22.13.13",
     "@types/spark-md5": "^3.0.5"
   }
 }

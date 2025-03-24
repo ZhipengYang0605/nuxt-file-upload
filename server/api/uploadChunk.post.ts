@@ -48,7 +48,7 @@ export default defineEventHandler(async (event) => {
   }
 
   // 移动文件到目标目录
-  const chunkPath = path.join(fileHashDir, `${fileName}.part${chunkIndex}`);
+  const chunkPath = path.join(fileHashDir, `${fileName}.part.${chunkIndex}`);
   fs.renameSync(file.filepath, chunkPath);
 
   return {

@@ -20,7 +20,7 @@ export default defineEventHandler(async (event) => {
   const writeStream = fs.createWriteStream(outputPath);
 
   for (let i = 0; i < totalChunks; i++) {
-    const chunkPath = path.join(chunksDir, `${i}.part`);
+    const chunkPath = path.join(chunksDir, `${fileName}.part.${i}`);
     if (!fs.existsSync(chunkPath)) {
       return {
         success: false,
