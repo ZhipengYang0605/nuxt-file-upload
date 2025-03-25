@@ -7,7 +7,10 @@ export default defineEventHandler(async (event) => {
   const chunksDir = path.join(process.cwd(), 'uploads', 'chunks', fileHash);
 
   if (fs.existsSync(chunksDir)) {
-    const chunks = fs.readdirSync(chunksDir).map((chunk) => parseInt(chunk.split('.')[1]));
+    const chunks = fs.readdirSync(chunksDir).map((chunk) => {
+      const matcher = chunk.match(/\.(\d+)$/)
+      return parseInt(matcher?.[1] ?? '0');
+    });
     return chunks;
   } else {
     return [];

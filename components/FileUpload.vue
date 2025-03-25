@@ -1,15 +1,18 @@
 <template>
   <div class="upload">
     <input type="file" @change="handleFileChange" />
-    <button class="upload-button" @click="uploadFile" :disabled="uploading">
+    <button class="button-base upload-button" @click="uploadFile" :disabled="uploading">
       {{ uploading ? '上传中...' : '点击上传' }}
     </button>
+    <button class="button-base upload-button" @click="cancelUpload">取消上传</button>
+    <button class="button-base upload-button" @click="uploadFile">继续上传</button>
     <div class="upload-progress">
-      上传进度: {{ progress }}%
+      整体上传进度: {{ progress.toFixed(0) }}%
       <div class="upload-progress__bar">
         <div :style="{ width: `${progress}%` }" class="upload-progress__bar-fill"></div>
       </div>
     </div>
+
     <div v-if="uploadError">
       上传出错: {{ uploadError }}
     </div>
@@ -17,7 +20,6 @@
 </template>
 
 <script lang="ts">
-import { ref } from 'vue';
 import axios from 'axios';
 import SparkMD5 from 'spark-md5';
 
@@ -31,6 +33,7 @@ export default {
     const fileHash = ref<string>('');
     const uploadedChunks = ref<number[]>([]);
 
+    const reqControllerQueue = new Set<AbortController>();
     // 选择文件
     const handleFileChange = (event: Event) => {
       const target = event.target as HTMLInputElement;
@@ -90,10 +93,16 @@ export default {
       });
     }
 
+    const cancelUpload = () => {
+      reqControllerQueue.forEach(controller => {
+        controller.abort();
+      });
+    }
+
     // 上传文件
     const uploadFile = async () => {
       if (!file.value) {
-        alert('Please select a file first.');
+        alert('请选择一个文件！');
         return;
       }
 
@@ -102,8 +111,10 @@ export default {
 
       try {
         // 计算文件哈希值
-        fileHash.value = await calculateFileHash(file.value);
-
+        if (!fileHash.value) {
+          fileHash.value = await calculateFileHash(file.value);
+        }
+        
         // 检查文件是否已存在（秒传）
         const { data } = await axios.post<{ exists: boolean }>('/api/checkFile', {
           fileHash: fileHash.value,
@@ -111,7 +122,7 @@ export default {
         });
 
         if (data.exists) {
-          alert('File already exists. Upload skipped.');
+          alert('文件已存在，无需再传！');
           progress.value = 100;
           return;
         }
@@ -120,6 +131,7 @@ export default {
         const { data: uploadedChunksData } = await axios.post<number[]>('/api/getUploadedChunks', {
           fileHash: fileHash.value,
         });
+
         uploadedChunks.value = uploadedChunksData;
 
         // 分片上传
@@ -143,6 +155,8 @@ export default {
           formData.append('fileHash', fileHash.value);
           formData.append('fileName', file.value.name);
 
+          const controller = new AbortController();
+          reqControllerQueue.add(controller);
           await axios.post('/api/uploadChunk', formData, {
             headers: {
               'Content-Type': 'multipart/form-data',
@@ -150,12 +164,13 @@ export default {
             onUploadProgress: (progressEvent) => {
               progress.value = ((i + progressEvent.loaded / (progressEvent.total ?? 1)) / totalChunks) * 100;
             },
+            signal: controller.signal,
           });
-
+          reqControllerQueue.delete(controller);
           uploadedChunks.value.push(i); // 记录已上传的分片
         }
 
-        alert('File uploaded successfully!');
+        alert('文件上传成功!');
 
         mergeChunk({
           totalChunks,
@@ -176,13 +191,14 @@ export default {
       uploadError,
       handleFileChange,
       uploadFile,
+      cancelUpload,
     };
   },
 };
 </script>
 
 <style lang="postcss" scoped>
-.upload .upload-button {
+.upload .button-base {
   height: 60px;
   width: 120px;
   border-radius: 8px;
@@ -193,6 +209,10 @@ export default {
   border: none;
   cursor: pointer;
   font-size: 20px;
+
+  &:not(:last-child) {
+    margin-right: 24px;
+  }
 
   &:active {
     opacity: 0.6;
